@@ -423,9 +423,14 @@
 
 (defn to-map
   "Converts a ClosedRecord back to a plain Clojure map.
-  Alias for underlying-map."
-  [^ClosedRecord cr]
-  (.-data cr))
+  If given a plain map, returns it unchanged (idempotent).
+
+  This allows using to-map defensively without checking:
+  (cr/to-map x)  ; Works whether x is ClosedRecord or plain map"
+  [x]
+  (if (instance? ClosedRecord x)
+    (.-data ^ClosedRecord x)
+    x))
 
 (defn with-schema
   "Returns a new ClosedRecord with an updated schema.

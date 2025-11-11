@@ -239,6 +239,42 @@ ClosedRecord implements all Clojure protocols, so it works everywhere maps work:
         (store-result!))))
 ```
 
+### Database Boundaries + Transformations
+
+**Real-world pattern from server2 project:** Wrap at database boundaries for typo protection, but convert to plain maps when transformations need to add fields.
+
+```clojure
+(require '[closed-record.core :as cr])
+
+;; 1. Wrap database results at the boundary
+(defn get-starred-posts [database opts]
+  (let [raw-posts (mongodb/get-posts ...)]
+    (->> raw-posts
+         (map cr/closed-record)  ; Typo protection!
+         vec)))
+
+;; 2. Reading database results is now typo-safe
+(let [posts (get-starred-posts db {})]
+  (:post-id (first posts))   ;=> Works!
+  (:pst-id (first posts)))   ;=> THROWS! Typo caught!
+
+;; 3. When transformations need to add fields, use to-map (idempotent!)
+(defn extract-media-url [post]
+  (let [;; to-map is idempotent - works on both ClosedRecords and plain maps
+        plain-post (cr/to-map post)
+        ;; Now transformation can add :data, :preview, etc.
+        transformed (xform/transform plain-post)]
+    transformed))
+```
+
+**Why this works:**
+- ✅ ClosedRecord catches typos when reading DB results
+- ✅ `to-map` is idempotent - no need for defensive checks
+- ✅ Transformation code can add new fields freely
+- ✅ Best of both worlds - safety + flexibility
+
+**Key insight:** Use ClosedRecord for *reading* data at boundaries. Use `to-map` before *transforming* data (adding fields, reshaping, etc). Since `to-map` is idempotent, you can safely call it without checking whether you have a ClosedRecord or plain map.
+
 ### Swing/UI Applications
 
 Perfect for preventing silent nil bugs in UI code:
@@ -295,8 +331,8 @@ Create a ClosedRecord that validates key access.
 ```clojure
 (closed-record? x)         ;; Returns true if x is a ClosedRecord
 (valid-keys cr)            ;; Returns set of valid keys
-(to-map cr)                ;; Convert back to plain map
-(underlying-map cr)        ;; Alias for to-map
+(to-map x)                 ;; Convert to plain map (idempotent - works on maps too!)
+(underlying-map cr)        ;; Extract underlying map (ClosedRecord only)
 (add-valid-keys cr & ks)   ;; Add keys to schema
 (with-schema cr schema)    ;; Replace schema
 ```
@@ -348,6 +384,72 @@ Create a ClosedRecord that validates key access.
 ;; Fix the typo immediately!
 (-> (first users) :name)  ;=> "Alice" ✅
 ```
+
+## Real Bugs Caught in Production
+
+**From the server2 project** - These are actual bugs ClosedRecord caught during development:
+
+### Bug #1: Wrong Field Name Assumption
+
+**The Problem:** Test was checking for `:id` field, but MongoDB posts use `:_id`
+
+```clojure
+;; WITHOUT ClosedRecord - Silent failure
+(deftest test-starred-posts
+  (let [posts (get-starred-posts db {})]
+    (is (:id (first posts)))))  ;=> nil (test passes but field doesn't exist!)
+
+;; Hours of debugging: "Why is :id always nil even when posts exist?"
+```
+
+```clojure
+;; WITH ClosedRecord - Immediate discovery
+(deftest test-starred-posts
+  (let [posts (get-starred-posts db {})]
+    (is (:id (first posts)))))
+
+;; **** INVALID KEY ACCESS: :id (valid keys: [:_id :added-timestamp :metadata :post :post-id :post-timestamp :starred]) ****
+;; Throws ex-info
+
+;; Immediately see: "Oh! MongoDB uses :_id, not :id"
+;; Fix in seconds: (is (:_id (first posts)))
+```
+
+**Impact:** Without ClosedRecord, the test would silently return `nil` and you'd spend hours debugging why. With ClosedRecord, you see the valid keys immediately and fix it in seconds.
+
+### Bug #2: Transformation Adding Invalid Fields
+
+**The Problem:** Transformation code tried to `assoc` a `:data` field that wasn't in the database schema
+
+```clojure
+;; WITHOUT ClosedRecord - Silent mutation
+(defn extract-image-url [post]
+  (let [transformed (xform/db>app post)]  ; Silently adds :data field
+    (:url transformed)))
+
+;; Works fine, but now your data has mystery fields
+;; Later: "Where did :data come from? Is it safe to use?"
+```
+
+```clojure
+;; WITH ClosedRecord - Caught immediately
+(defn extract-image-url [post]
+  (let [transformed (xform/db>app post)]
+    (:url transformed)))
+
+;; **** INVALID KEY ASSOC: :data (valid keys: [:_id :added-timestamp :metadata :post :post-id :post-timestamp :starred]) ****
+;; Throws ex-info
+
+;; Immediately see: "Transformation is adding fields! Need to convert to plain map first"
+;; Fix: (xform/db>app (cr/to-map post))
+```
+
+**Impact:** Without ClosedRecord, transformations silently add fields and you have unclear data contracts. With ClosedRecord, you're forced to be explicit: "This transformation adds fields, so convert to plain map first."
+
+**The Pattern This Revealed:**
+- ✅ Use ClosedRecord when **reading** data (typo protection)
+- ✅ Convert to plain map when **transforming** data (flexibility)
+- ✅ Best of both worlds!
 
 ## Performance Characteristics
 
