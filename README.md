@@ -8,11 +8,13 @@
 
 **This idea is antithetical to Rich Hickey and the Clojure ethos.**
 
-When shown to Alex Miller (Clojure team), his response was: *"This is the worst thread I've ever read ever :)"* 😂
+As Rich Hickey said in his "Spec-ulation" 2016 Clojure/conj talk: "Spec is about what you could do right now. It's not about what you can't do."
 
-But if you can implement monads and optionals in Clojure, we can do this too.
+When I mentioned this idea in the #ai-assisted-coding channel, Alex Miller (Clojure team) response was: *"This is the worst thread I've ever read ever :)"* 😂
 
-The fact that Clojure can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing—is a source of awe and amazement. That's the power of Clojure: it doesn't stop you from solving your problems your way.
+But hey, if you can [implement monads and optionals](https://github.com/funcool/cats) in Clojure, we can do this too.
+
+I am in awe of the power of the Clojure language.  It can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing—is a source of awe and amazement. 
 
 **Fair warning**: Use at your own risk. You're trading Clojure's beautiful flexibility for compile-time-like safety. But when typos cause silent nil bugs, or when working with LLMs that hallucinate `:user_id` when you meant `:user-id`, sometimes strictness is practical. 🤷
 
