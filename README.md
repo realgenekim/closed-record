@@ -1,6 +1,6 @@
 # ClosedRecord: Strict Map Wrapper for Safe Clojure
 
-A Clojure data structure that catches invalid map key access immediately - designed to prevent typos, detect LLM hallucinations, and eliminate silent nil bugs.
+A Clojure data structure that catches invalid map key access immediately - designed to prevent typos, detect LLM hallucinations, and eliminate silent nil bugs.  I'm using this in all my projects, and am finding all sorts of issues every couple of days that normally would have caused hours of chasing down questions that usually involve asking "where did this nil come from?"
 
 ---
 
@@ -20,10 +20,11 @@ Goals:
 2. **Fail loud** - Show errors that both humans and LLMs can see
 3. **Fail informatively** - Show what was tried and what's valid
 
-In many ways, this exercise is a testament to the power of the Clojure language.  I'm amazed that it can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing.
-
+In many ways, this exercise is a testament to the power of the Clojure language.  I'm amazed that it can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing.  Of particular awe was how easy it was to change the behavior of IAssociative and therefore maps.
 
 Just as the fantastic [guardrails](https://github.com/fulcrologic/guardrails) does, you trade in some of Clojure's flexibility for additinal runtime safety. This is especially helpful when typos cause silent nil bugs, or when working with LLMs, where it hallucinates `:user_id` when you meant `:user-id`.
+
+
 ---
 
 ## The Problem
@@ -78,9 +79,9 @@ Think of it as two phases of development:
 - You know EXACTLY what keys should exist
 - The exploration phase is over
 - Now you want **tight coupling** between objects and system
-- You want runtime enforcement of what you've carefully designed
+- You want runtime enforcement of what you've carefully designed -- in fact, heck, if there were a way to get compile-time checking, I'd use it!
 
-**The insight**: When you know everything about your domain model, you don't need loose coupling anymore. Loose coupling is valuable when things are uncertain. But once you've invested in defining schemas, specs, and transformations, **loose coupling becomes a liability** - it allows violations of what you've carefully specified.
+**The insight**: When you know everything about your domain model, you don't want such loose coupling. Loose coupling is valuable, lowers the cost of exploration, and increases option value, which is so valuable when things are uncertain. But once you've invested in defining schemas, specs, and transformations, this can become a liability, because it allows violations of what you've carefully specified.
 
 ClosedRecord is for **Phase 2**: When you've done the hard work of schema design and now want to enforce it strictly. It's not for exploration; it's for production-hardening code where schema violations should be caught immediately.
 
