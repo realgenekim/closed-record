@@ -20,7 +20,7 @@ Goals:
 2. **Fail loud** - Show errors that both humans and LLMs can see
 3. **Fail informatively** - Show what was tried and what's valid
 
-In many ways, this exercise is a testament to the power of the Clojure language.  I'm amazed that it can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing.  Of particular awe was how easy it was to change the behavior of IAssociative and therefore maps.  (See Acknowledgements at the end of this file.)
+In many ways, this exercise is a testament to the power of the Clojure language.  I'm amazed that it can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing.  Of particular awe was how easy it was to implement the map protocols (`ILookup`, `IFn`, `Associative`, `IPersistentMap`) via `deftype`, creating a custom type that behaves like a map but with validation.  (See Acknowledgements at the end of this file.)
 
 Just as the fantastic [guardrails](https://github.com/fulcrologic/guardrails) does, you trade in some of Clojure's flexibility for additinal runtime safety. This is especially helpful when typos cause silent nil bugs, or when working with LLMs, where it hallucinates `:user_id` when you meant `:user-id`.
 
@@ -523,6 +523,7 @@ A: ClosedRecord is an alternative to defrecord with different trade-offs. defrec
 - **clojure.spec** - Validates data shape, doesn't prevent invalid key access (use together!)
 - **schema (Prismatic)** - Similar to spec, focuses on validation not access control
 - **malli** - Modern schema library with closed map support
+- **Java classes with getters/setters** - I experimented with generating Java classes with explicit getters and setters for strict field access, but have been frustrated by REPL reload issues when using JVM classes that needed regeneration. ClosedRecord provides similar safety without leaving Clojure-land.
 
 ClosedRecord is **complementary** to these tools - use it when runtime key validation matters.
 
@@ -532,7 +533,7 @@ See [docs/WHY.md](docs/WHY.md) for detailed rationale and examples.
 
 ## License
 
-EPL 1.0 (same as Clojure)
+MIT License
 
 ## Credits
 
