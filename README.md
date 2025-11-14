@@ -20,7 +20,7 @@ Goals:
 2. **Fail loud** - Show errors that both humans and LLMs can see
 3. **Fail informatively** - Show what was tried and what's valid
 
-In many ways, this exercise is a testament to the power of the Clojure language.  I'm amazed that it can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing.  Of particular awe was how easy it was to change the behavior of IAssociative and therefore maps.
+In many ways, this exercise is a testament to the power of the Clojure language.  I'm amazed that it can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing.  Of particular awe was how easy it was to change the behavior of IAssociative and therefore maps.  (See Acknowledgements at the end of this file.)
 
 Just as the fantastic [guardrails](https://github.com/fulcrologic/guardrails) does, you trade in some of Clojure's flexibility for additinal runtime safety. This is especially helpful when typos cause silent nil bugs, or when working with LLMs, where it hallucinates `:user_id` when you meant `:user-id`.
 
