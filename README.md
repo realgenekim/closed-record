@@ -1,6 +1,6 @@
 # ClosedRecord: Strict Map Wrapper for Safe Clojure
 
-**A Clojure data structure that catches invalid map key access immediately - designed to prevent typos, detect LLM hallucinations, and eliminate silent nil bugs.**
+A Clojure data structure that catches invalid map key access immediately - designed to prevent typos, detect LLM hallucinations, and eliminate silent nil bugs.
 
 ---
 
@@ -8,16 +8,22 @@
 
 **This idea is antithetical to Rich Hickey and the Clojure ethos.**
 
-As Rich Hickey said in his "Spec-ulation" 2016 Clojure/conj talk: "Spec is about what you could do right now. It's not about what you can't do."
+As Rich Hickey said in his "Spec-ulation" 2016 Clojure/conj talk: "Spec is about what you can do right now. It's not about what you can't do."
 
-When I mentioned this idea in the #ai-assisted-coding channel, Alex Miller (Clojure team) response was: *"This is the worst thread I've ever read ever :)"* 😂
+When I mentioned this approach of solving the the problem in the #ai-assisted-coding channel, Alex Miller (Clojure team) response was: *"This is the worst thread I've ever read ever :)"* 😂
 
-But hey, if you can [implement monads and optionals](https://github.com/funcool/cats) in Clojure, we can do this too.
+But hey, if you can [implement monads and optionals](https://github.com/funcool/cats) in Clojure, I can do this, too.
 
-I am in awe of the power of the Clojure language.  It can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing—is a source of awe and amazement. 
+Goals:
 
-**Fair warning**: Use at your own risk. You're trading Clojure's beautiful flexibility for compile-time-like safety. But when typos cause silent nil bugs, or when working with LLMs that hallucinate `:user_id` when you meant `:user-id`, sometimes strictness is practical. 🤷
+1. **Fail fast** - Detect invalid keys at the point of access
+2. **Fail loud** - Show errors that both humans and LLMs can see
+3. **Fail informatively** - Show what was tried and what's valid
 
+In many ways, this exercise is a testament to the power of the Clojure language.  I'm amazed that it can enable and accommodate this type of use case—even when it goes against the grain of open maps and dynamic typing.
+
+
+Just as the fantastic [guardrails](https://github.com/fulcrologic/guardrails) does, you trade in some of Clojure's flexibility for additinal runtime safety. This is especially helpful when typos cause silent nil bugs, or when working with LLMs, where it hallucinates `:user_id` when you meant `:user-id`.
 ---
 
 ## The Problem
@@ -61,13 +67,13 @@ Typos in map keys silently return `nil`, causing bugs that propagate through you
 
 Think of it as two phases of development:
 
-**Phase 1: Exploration** (Open Maps Era)
+**Phase 1: Exploration** (Open Maps Phase)
 - You're discovering your domain
 - You don't know what keys you need yet
 - Flexibility is essential - open maps are perfect
 - Decoupling is good because the domain is still evolving
 
-**Phase 2: Hardening** (Closed Maps Era) ← **You are here**
+**Phase 2: Hardening** (Closed Maps Phase) ← **You are here**
 - You've defined your canonical schema
 - You know EXACTLY what keys should exist
 - The exploration phase is over
@@ -89,17 +95,13 @@ But when precision matters, **liberal acceptance causes pain**. ClosedRecord fli
 - **Conservative in acceptance**: Only valid keys allowed (catch typos/hallucinations)
 - **Liberal in communication**: LOUD errors so you can't miss them
 
-### Goals
 
-1. **Fail fast** - Detect invalid keys at the point of access
-2. **Fail loud** - Show errors that both humans and LLMs can see
-3. **Fail informatively** - Show what was tried and what's valid
 
 ## Installation
 
 ```clojure
 ;; deps.edn
-{:deps {closed-record/closed-record {:local/root "../closed-record"}}}
+{:deps {closed-record/closed-record {:git/url "https://github.com/realgenekim/closed-record"}}}
 ```
 
 ## Quick Start
