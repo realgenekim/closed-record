@@ -87,6 +87,20 @@ ClosedRecord is for **Phase 2**: When you've done the hard work of schema design
 
 **In other words**: Open maps are great for discovery. Closed maps are great for preventing bugs in well-defined domains. Use the right tool for the right phase.
 
+### Schemas Are Usually Overkill
+
+In practice, **you rarely need explicit schemas**. Just wrapping your data with `(closed-record my-map)` — no schema, no spec, no options — is usually all you need. The schema is derived automatically from the keys in the data, and any access to a key that doesn't exist will throw immediately.
+
+```clojure
+;; This is almost always sufficient:
+(def event (closed-record {:type "click" :ip "1.2.3.4" :ts "2026-03-07T10:00:00Z"}))
+
+(:type event)   ;=> "click" ✅
+(:typo event)   ;=> THROWS! "INVALID KEY ACCESS: :typo"
+```
+
+Defining explicit schemas with `:schema` or `:spec` adds complexity that is rarely justified. The primary value of ClosedRecord is **catching typos on key access** — and that works perfectly with schema-free wrapping. Save the schema investment for cases where you genuinely need to allow keys that aren't yet in the data.
+
 ### Postel's Law in Reverse
 
 Traditional software follows **Postel's Law**: "Be liberal in what you accept, be conservative in what you send."
