@@ -114,6 +114,24 @@
 
 (declare closed-record) ; Forward declaration for recursion
 
+(defn- auto-wrap-nested-maps
+  "Recursively wrap all nested map values as ClosedRecords (no spec needed).
+  Schema for each nested map is derived from its own keys."
+  [data opts]
+  (reduce-kv
+   (fn [acc k v]
+     (assoc acc k
+            (cond
+              (map? v)
+              (closed-record v (assoc opts :recursive true))
+
+              (and (coll? v) (not (empty? v)) (every? map? v))
+              (into (empty v) (map #(closed-record % (assoc opts :recursive true))) v)
+
+              :else v)))
+   data
+   data))
+
 (defn- wrap-nested-value
   "Recursively wrap a value based on its type and nested spec.
 
@@ -386,14 +404,21 @@
                          (select-keys data schema)
                          data)
 
-         ;; Extract nested specs if recursive mode enabled
-         nested-specs (when (and (:recursive opts) spec-kw)
-                        (extract-nested-specs spec-kw))
-
          ;; Apply recursive wrapping to nested maps
-         wrapped-data (if (and (:recursive opts) nested-specs (not (empty? nested-specs)))
-                        (apply-recursive-wrapping filtered-data nested-specs opts)
-                        filtered-data)
+         wrapped-data (cond
+                        ;; Recursive with spec — use spec-guided wrapping
+                        (and (:recursive opts) spec-kw)
+                        (let [nested-specs (extract-nested-specs spec-kw)]
+                          (if (seq nested-specs)
+                            (apply-recursive-wrapping filtered-data nested-specs opts)
+                            filtered-data))
+
+                        ;; Recursive without spec — auto-wrap all nested maps
+                        (:recursive opts)
+                        (auto-wrap-nested-maps filtered-data opts)
+
+                        ;; No recursion
+                        :else filtered-data)
 
          config {:throw-on-invalid-read (if (contains? opts :throw-on-invalid-read)
                                           (:throw-on-invalid-read opts)
@@ -431,6 +456,23 @@
   (if (instance? ClosedRecord x)
     (.-data ^ClosedRecord x)
     x))
+
+(defn to-map-recursive
+  "Deeply converts ClosedRecord (and nested ClosedRecords) to plain maps.
+  Idempotent — safe on already-plain data."
+  [x]
+  (let [m (if (instance? ClosedRecord x) (.-data ^ClosedRecord x) x)]
+    (if (map? m)
+      (reduce-kv (fn [acc k v]
+                   (assoc acc k
+                          (cond
+                            (or (instance? ClosedRecord v) (map? v))
+                            (to-map-recursive v)
+                            (and (coll? v) (some #(or (instance? ClosedRecord %) (map? %)) v))
+                            (into (empty v) (map to-map-recursive) v)
+                            :else v)))
+                 {} m)
+      m)))
 
 (defn with-schema
   "Returns a new ClosedRecord with an updated schema.

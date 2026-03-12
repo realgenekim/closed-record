@@ -1,4 +1,4 @@
-(ns slack-archive.util.real-world-closed-record-test
+(ns closed-record.real-world-test
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.spec.alpha :as s]
