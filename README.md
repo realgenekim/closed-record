@@ -122,8 +122,7 @@ But when precision matters, **liberal acceptance causes pain**. ClosedRecord fli
 ## Quick Start
 
 ```clojure
-(require '[closed-record.core :refer [closed-record]]
-         '[clojure.spec.alpha :as s])
+(require '[closed-record.core :refer [closed-record closed-record-recursive]])
 
 ;; Basic usage - schema derived from data
 (def user (closed-record {:name "Alice" :email "alice@example.com"}))
@@ -131,25 +130,52 @@ But when precision matters, **liberal acceptance causes pain**. ClosedRecord fli
 (:name user)   ;=> "Alice" ✅
 (:nam user)    ;=> THROWS! (typo caught!)
 
-;; With clojure.spec - automatic schema extraction
+;; Recursive wrapping (RECOMMENDED for nested data)
+;; No specs needed — schema derived from each map's keys
+(def app-state
+  (closed-record-recursive
+    {:chat {:model "claude-3" :messages [{:role "user" :content "Hi"}]}
+     :ui   {:sidebar-open true :theme "dark"}}))
+
+(-> app-state :chat :model)       ;=> "claude-3" ✅
+(-> app-state :chat :modl)        ;=> THROWS! (typo caught at nested level!)
+(-> app-state :ui :sidebar_open)  ;=> THROWS! (underscore vs dash!)
+
+;; Works with vectors of maps too
+(:role (first (:messages (:chat app-state))))  ;=> "user" ✅
+(:rol (first (:messages (:chat app-state))))   ;=> THROWS!
+
+;; Convert back for serialization
+(to-map-recursive app-state)  ;=> plain nested maps, ready for pr-str/spit
+```
+
+### Why `closed-record-recursive` isn't the default
+
+`closed-record-recursive` is equivalent to `(closed-record data {:recursive true})`. We recommend it for most use cases, but it's not the default because:
+
+1. **Breaking change risk** — existing code using `assoc-in` to add new keys to nested maps would start throwing
+2. **Some nested maps are dynamic** — e.g., a `:metadata` bag where keys genuinely vary
+3. **Explicit is better** — wrapping should be a conscious choice at each level
+
+For new code with nested data, **always prefer `closed-record-recursive`**.
+
+### With clojure.spec (optional)
+
+Specs are rarely needed — the schema is derived from the data's keys. But if you need to allow keys not yet in the data:
+
+```clojure
+(require '[clojure.spec.alpha :as s])
+
 (s/def ::id string?)
 (s/def ::name string?)
 (s/def ::email string?)
 (s/def ::user (s/keys :req-un [::id ::name ::email]))
 
-(def user (closed-record {:id "1" :name "Alice" :email "alice@example.com"}
+(def user (closed-record {:id "1" :name "Alice"}
                          {:spec ::user}))
 
-;; Recursive wrapping - protect nested maps too!
-(s/def ::address (s/keys :req-un [::street ::city]))
-(s/def ::person (s/keys :req-un [::name ::address]))
-
-(def person (closed-record {:name "Alice"
-                            :address {:street "123 Main" :city "NYC"}}
-                           {:spec ::person :recursive true}))
-
-(-> person :address :city)    ;=> "NYC" ✅
-(-> person :address :cty)     ;=> THROWS! (typo in nested map caught!)
+;; Can assoc :email later because spec includes it
+(assoc user :email "alice@example.com")  ;=> works!
 ```
 
 ## Key Design Decisions
@@ -343,12 +369,32 @@ Create a ClosedRecord that validates key access.
 (closed-record api-response {:spec ::user :relax-constructor-constraints? true})
 ```
 
+### `closed-record-recursive`
+
+Convenience constructor — recommended for nested data. Equivalent to `(closed-record data {:recursive true})`.
+
+```clojure
+(closed-record-recursive data)
+(closed-record-recursive data opts)  ;; opts are merged with {:recursive true}
+```
+
+**Examples:**
+
+```clojure
+;; Wrap app-state — every nested map protected
+(closed-record-recursive {:ui {:theme "dark"} :chat {:model "claude"}})
+
+;; With additional options
+(closed-record-recursive data {:throw-on-invalid-read false})
+```
+
 ### Helper Functions
 
 ```clojure
 (closed-record? x)         ;; Returns true if x is a ClosedRecord
 (valid-keys cr)            ;; Returns set of valid keys
-(to-map x)                 ;; Convert to plain map (idempotent - works on maps too!)
+(to-map x)                 ;; Convert to plain map (one level, idempotent)
+(to-map-recursive x)       ;; Deeply convert nested ClosedRecords to plain maps
 (underlying-map cr)        ;; Extract underlying map (ClosedRecord only)
 (add-valid-keys cr & ks)   ;; Add keys to schema
 (with-schema cr schema)    ;; Replace schema
@@ -516,16 +562,23 @@ A: Small overhead (2-3x slower than plain map access), but the cost of hunting d
 
 **Q: Can I convert back to a plain map?**
 
-A: Yes! `(to-map cr)` returns the underlying map. Use for interop with libraries that expect plain maps.
+A: Yes! `(to-map cr)` for one level, or `(to-map-recursive cr)` to deeply unwrap all nested ClosedRecords. Use `to-map-recursive` when serializing (e.g., `(spit file (pr-str (to-map-recursive @app-state)))`).
 
 **Q: Does it work with nested maps?**
 
-A: Yes, with `:recursive true`:
+A: Yes — use `closed-record-recursive` (recommended):
 
 ```clojure
-(closed-record data {:spec ::person :recursive true})
-;; Now nested maps are also ClosedRecords!
+;; No specs needed — just wrap it
+(def state (closed-record-recursive {:ui {:theme "dark"} :data {:items [{:id 1}]}}))
+
+;; Every nested map and vector-of-maps is protected
+(-> state :ui :thme)  ;=> THROWS!
+(:id (first (:items (:data state))))  ;=> 1
+(:idd (first (:items (:data state)))) ;=> THROWS!
 ```
+
+You can also use `(closed-record data {:spec ::my-spec :recursive true})` for spec-guided recursive wrapping, but specs are rarely needed.
 
 **Q: Can I use it with defrecord?**
 

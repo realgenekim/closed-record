@@ -474,6 +474,24 @@
                  {} m)
       m)))
 
+(defn closed-record-recursive
+  "Convenience constructor: wraps data with recursive wrapping enabled.
+  Equivalent to (closed-record data {:recursive true}).
+
+  Recommended for nested data structures like app-state atoms, API responses,
+  and any map-of-maps where you want typo protection at every level.
+
+  Not the default because it's a semantic change — existing code using assoc-in
+  to add new keys to nested maps would start throwing. Explicit opt-in avoids
+  surprising breakage.
+
+  Examples:
+    (def state (closed-record-recursive {:ui {:theme \"dark\"} :chat {:model \"claude\"}}))
+    (-> state :ui :theme)       ;=> \"dark\"
+    (-> state :ui :thme)        ;=> THROWS! (typo caught at nested level)"
+  ([data] (closed-record data {:recursive true}))
+  ([data opts] (closed-record data (assoc opts :recursive true))))
+
 (defn with-schema
   "Returns a new ClosedRecord with an updated schema.
   Useful for adding additional valid keys after construction."
